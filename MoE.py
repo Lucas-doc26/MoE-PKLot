@@ -18,7 +18,7 @@ class ImageDataset(Dataset):
         self.transform = transforms.Compose([
             transforms.Resize((124, 124)),   # garante 124x124
             transforms.Normalize(
-                mean=[0.485, 0.456, 0.406],
+                mean=[0.485, 0.456, 0.406], #padrão ImageNet
                 std=[0.229, 0.224, 0.225]
             )
         ])
@@ -29,23 +29,19 @@ class ImageDataset(Dataset):
     def __getitem__(self, idx):
         img_path = self.data.iloc[idx, 0]
 
-        # Ler imagem com PIL
         image = Image.open(img_path).convert('RGB')
         image = np.array(image).transpose(2, 0, 1)  # [H,W,C] -> [C,H,W]
         image = torch.from_numpy(image).float() / 255.0
 
         image = self.transform(image)
 
-        # assume classe na coluna 1
         label = int(self.data.iloc[idx, 1])
 
         return image, label
 
 
 
-# ======================
 # Expert CNN
-# ======================
 class ExpertCNN(nn.Module):
     def __init__(self):
         super().__init__()
@@ -67,9 +63,7 @@ class ExpertCNN(nn.Module):
 
 
 
-# ======================
 # Router (Gating Network)
-# ======================
 class Router(nn.Module):
     def __init__(self, n_experts, top_k=2):
         super().__init__()
@@ -83,7 +77,7 @@ class Router(nn.Module):
         x_pooled = self.pool(x).view(x.size(0), -1)  # [B, 3]
         logits = self.linear(x_pooled)  # [B, n_experts]
         
-        # Top-k: seleciona os top_k melhores experts por amostra
+        # seleciona os top_k melhores experts por amostra
         top_k_logits, top_k_indices = torch.topk(logits, self.top_k, dim=1)  # [B, top_k]
         
         # Normaliza apenas os top-k

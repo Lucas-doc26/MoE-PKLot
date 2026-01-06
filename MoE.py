@@ -127,23 +127,24 @@ class MoECNN(nn.Module):
 # Train test
 # ======================
 device = "cuda" if torch.cuda.is_available() else "cpu"
+print(device)
 
-trainset = ImageDataset('/home/lucas/MoE-PKLot/CSV/camera9/camera9_train.csv')
-trainloader = DataLoader(trainset, batch_size=64, shuffle=True)
+trainset = ImageDataset('/home/lucas.ocunha/MoE-PKLot/CSV/PUC/batches/batch-64.csv')
+trainloader = DataLoader(trainset, batch_size=32, shuffle=True)
 
-validset = ImageDataset('/home/lucas/MoE-PKLot/CSV/camera9/camera9_valid.csv')
+validset = ImageDataset('/home/lucas.ocunha/MoE-PKLot/CSV/PUC/PUC_validation.csv')
 validloader = DataLoader(validset, batch_size=64, shuffle=False)
 
-testset = ImageDataset('/home/lucas/MoE-PKLot/CSV/camera9/camera9_test.csv')
+testset = ImageDataset('/home/lucas.ocunha/MoE-PKLot/CSV/PUC/PUC_test.csv')
 testloader = DataLoader(testset, batch_size=64, shuffle=False)
 
-model = MoECNN(n_experts=10, top_k=3).to(device)
+model = MoECNN(n_experts=50, top_k=5).to(device)
 
 criterion = nn.CrossEntropyLoss()
 optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
 
 # Treinar por múltiplas épocas
-num_epochs = 3
+num_epochs = 10
 
 for epoch in range(num_epochs):
     # ===== TREINO =====

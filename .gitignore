@@ -1,2 +1,6 @@
+#qualquer csv
 *.csv
 /CSV
+
+#modelos 
+*.pth

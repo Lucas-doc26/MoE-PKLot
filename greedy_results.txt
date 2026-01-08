@@ -1,0 +1,42 @@
+Greedy search started at qua 07 jan 2026 17:26:24 -03
+Tests list: PUC,UFPR04,UFPR05,camera1,camera2,camera3,camera4,camera5,camera6,camera7,camera8,camera9,PKLot,CNR
+\nSearching cur_batch...
+ Testing cur_batch=64
+  -> avg val_acc for cur_batch=64 : 0
+ Testing cur_batch=128
+  -> avg val_acc for cur_batch=128 : 0
+ Testing cur_batch=256
+  -> avg val_acc for cur_batch=256 : 0
+ Testing cur_batch=512
+  -> avg val_acc for cur_batch=512 : 0
+ Testing cur_batch=1024
+  -> avg val_acc for cur_batch=1024 : 0
+Best cur_batch = 64 (avg val_acc=0)
+\nSearching cur_workers...
+ Testing cur_workers=3
+  -> avg val_acc for cur_workers=3 : 0
+ Testing cur_workers=5
+  -> avg val_acc for cur_workers=5 : 0
+ Testing cur_workers=10
+  -> avg val_acc for cur_workers=10 : 0
+ Testing cur_workers=20
+  -> avg val_acc for cur_workers=20 : 0
+Best cur_workers = 3 (avg val_acc=0)
+\nSearching cur_epochs...
+ Testing cur_epochs=3
+  -> avg val_acc for cur_epochs=3 : 0
+ Testing cur_epochs=10
+  -> avg val_acc for cur_epochs=10 : 0
+ Testing cur_epochs=20
+  -> avg val_acc for cur_epochs=20 : 0
+Best cur_epochs = 3 (avg val_acc=0)
+\nSearching cur_topk...
+ Testing cur_topk=2
+  -> avg val_acc for cur_topk=2 : 0
+ Testing cur_topk=3
+  -> avg val_acc for cur_topk=3 : 0
+Best cur_topk = 2 (avg val_acc=0)
+\nGreedy search finished at qui 08 jan 2026 16:19:25 -03
+Final config: batch=64 workers=3 epochs=3 topk=2
+Detailed logs: logs/greedy
+Done. Review greedy_results.txt and metrics.csv for results.

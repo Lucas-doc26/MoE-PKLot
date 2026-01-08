@@ -11,9 +11,7 @@ from torchvision import transforms
 from PIL import Image
 
 
-# ======================
 # Dataset
-# ======================
 class ImageDataset(Dataset):
     def __init__(self, data_path):
         self.data = pd.read_csv(data_path)
@@ -94,9 +92,7 @@ class Router(nn.Module):
 
 
 
-# ======================
 # MoE
-# ======================
 class MoECNN(nn.Module):
     def __init__(self, n_experts, top_k=2):
         super().__init__()
@@ -118,7 +114,7 @@ class MoECNN(nn.Module):
         
         outputs = torch.stack(expert_outputs, dim=1)  # [B, n_experts, C]
         
-        # Aplica gates (ponderação dos experts)
+        # Aplica gates (ponderacao dos experts)
         gates = gates.unsqueeze(-1)  # [B, n_experts, 1]
         weighted_outputs = outputs * gates  # [B, n_experts, C]
         
@@ -127,51 +123,42 @@ class MoECNN(nn.Module):
 
 
 def main():
-    # =====================
     # Argument Parser
-    # =====================
-    parser = argparse.ArgumentParser(description='MoE (Mixture of Experts) para detecção de vagas de estacionamento')
+    parser = argparse.ArgumentParser(description='MoE (Mixture of Experts) para deteccao de vagas de estacionamento')
     
     parser.add_argument('--train_data', type=str, default='PUC', help='Caminho para dataset de treino (padrão: PUC)')
-    parser.add_argument('--valid_data', type=str, default='PUC', help='Caminho para dataset de validação (padrão: PUC)')
+    parser.add_argument('--valid_data', type=str, default='PUC', help='Caminho para dataset de validacao (padrão: PUC)')
     parser.add_argument('--test_data', type=str, default='UFPR05', help='Caminho para dataset de teste (padrão: UFPR05)')
+    parser.add_argument('--test_datasets', type=str, default='PUC,UFPR04,UFPR05,camera1,camera2,camera3,camera4,camera5,camera6,camera7,camera8,camera9,PKLot,CNR', help='Lista separada por vírgula de datasets para avaliar (ex: PUC,UFPR05,camera1,PKLot,CNR)')
     parser.add_argument('--batch_size', type=int, default=64, help='Tamanho do batch (padrão: 64)')
     parser.add_argument('--num_workers', type=int, default=1, help='Número de workers para DataLoader (padrão: 1)')
-    parser.add_argument('--num_epochs', type=int, default=10, help='Número de épocas (padrão: 10)')
+    parser.add_argument('--num_epochs', type=int, default=5, help='Número de épocas (padrão: 10)')
     parser.add_argument('--top_k', type=int, default=2, help='Top-k experts a selecionar (padrão: 2)')
-    parser.add_argument('--n_experts', type=int, default=10, help='Número total de experts (padrão: 10)')
+    parser.add_argument('--n_experts', type=int, default=3, help='Número total de experts (padrão: 10)')
     parser.add_argument('--lr', type=float, default=1e-3, help='Learning rate (padrão: 1e-3)')
     
     args = parser.parse_args()
     
-    # =====================
     # Setup
-    # =====================
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"Usando device: {device}")
     
     # Criar diretório de modelos se não existir
     os.makedirs('Models', exist_ok=True)
     
-    # =====================
     # Carregamento dos dados
-    # =====================
     print("\n[1/5] Carregando datasets...")
     trainset = ImageDataset(f'/home/lucas.ocunha/MoE-PKLot/CSV/{args.train_data}/batches/batch-{args.batch_size}.csv')
     validset = ImageDataset(f'/home/lucas.ocunha/MoE-PKLot/CSV/{args.valid_data}/batches/batch-{args.batch_size}.csv')
-    testset = ImageDataset(f'/home/lucas.ocunha/MoE-PKLot/CSV/{args.test_data}/{args.test_data}_test.csv')
-
     trainloader = DataLoader(trainset, batch_size=32, shuffle=True, num_workers=args.num_workers)
     validloader = DataLoader(validset, batch_size=32, shuffle=False, num_workers=args.num_workers)
-    testloader = DataLoader(testset, batch_size=32, shuffle=False, num_workers=args.num_workers)
+    # test datasets will be evaluated after training using --test_datasets
     
     print(f"   - Treino: {len(trainset)} imagens")
-    print(f"   - Validação: {len(validset)} imagens")
-    print(f"   - Teste: {len(testset)} imagens")
+    print(f"   - Validacao: {len(validset)} imagens")
+    print(f"   - Testes: múltiplos datasets (use --test_datasets)")
     
-    # =====================
     # Modelo
-    # =====================
     print("\n[2/5] Criando modelo MoE...")
     model = MoECNN(n_experts=args.n_experts, top_k=args.top_k).to(device)
     criterion = nn.CrossEntropyLoss()
@@ -181,9 +168,7 @@ def main():
     print(f"   - Top-k: {args.top_k}")
     print(f"   - Learning rate: {args.lr}")
     
-    # =====================
     # Treino
-    # =====================
     print(f"\n[3/5] Iniciando treino ({args.num_epochs} épocas)...")
     
     history = {
@@ -222,7 +207,7 @@ def main():
         train_acc = 100 * train_correct / train_total
         train_avg_loss = train_loss / len(trainloader)
         
-        # ===== VALIDAÇÃO =====
+        # ===== VALIDAcaO =====
         model.eval()
         val_loss = 0.0
         val_correct = 0
@@ -255,71 +240,100 @@ def main():
               f"Train Loss: {train_avg_loss:.4f} | Train Acc: {train_acc:.2f}% | "
               f"Val Loss: {val_avg_loss:.4f} | Val Acc: {val_acc:.2f}%")
     
-    # =====================
-    # Teste
-    # =====================
-    print("\n[4/5] Avaliando modelo no conjunto de teste...")
+    # Teste em múltiplos datasets
+    print("\n[4/5] Avaliando modelo nos conjuntos de teste listados...")
     model.eval()
-    test_loss = 0.0
-    test_correct = 0
-    test_total = 0
+
+    def _find_test_csv(dataset_name):
+        # procura por arquivos de teste dentro da pasta CSV/<dataset_name>
+        base = '/home/lucas.ocunha/MoE-PKLot/CSV'
+        parts = dataset_name.split('/') if '/' in dataset_name else [dataset_name]
+        data_dir = os.path.join(base, *parts)
+        if os.path.isdir(data_dir):
+            # prioriza arquivos que contenham 'test' no nome
+            for fname in os.listdir(data_dir):
+                if 'test' in fname.lower() and fname.lower().endswith('.csv'):
+                    return os.path.join(data_dir, fname)
+            # fallback: primeiro CSV encontrado
+            for fname in os.listdir(data_dir):
+                if fname.lower().endswith('.csv'):
+                    return os.path.join(data_dir, fname)
+        # se recebeu um caminho absoluto
+        if os.path.isfile(dataset_name):
+            return dataset_name
+        return None
+
+    test_list = [t.strip() for t in args.test_datasets.split(',') if t.strip()]
+    for test_ds in test_list:
+        test_csv = _find_test_csv(test_ds)
+        if test_csv is None:
+            print(f"⚠️  Arquivo de teste não encontrado para dataset: {test_ds} - pulando")
+            continue
+
+        print(f"\n--- Avaliando: {test_ds} ({test_csv}) ---")
+        testset = ImageDataset(test_csv)
+        testloader = DataLoader(testset, batch_size=32, shuffle=False, num_workers=args.num_workers)
+
+        test_loss = 0.0
+        test_correct = 0
+        test_total = 0
+
+        with torch.no_grad():
+            for images, labels in testloader:
+                images = images.to(device)
+                labels = labels.long().to(device)
+
+                outputs = model(images)
+                loss = criterion(outputs, labels)
+
+                test_loss += loss.item()
+                _, predicted = torch.max(outputs.data, 1)
+                test_total += labels.size(0)
+                test_correct += (predicted == labels).sum().item()
+
+        if test_total == 0:
+            print(f"⚠️  Nenhuma amostra no dataset de teste: {test_ds}")
+            continue
+
+        test_acc = 100 * test_correct / test_total
+        test_avg_loss = test_loss / len(testloader)
+
+        print("=" * 60)
+        print(f"RESULTADOS NO CONJUNTO DE TESTE: {test_ds}")
+        print("=" * 60)
+        print(f"Test Loss: {test_avg_loss:.4f}")
+        print(f"Test Accuracy: {test_acc:.2f}%")
+
+        # Salvar métricas desta avaliacao
+        metrics_row = pd.DataFrame({
+            'timestamp': [datetime.now().isoformat()],
+            'n_experts': [args.n_experts],
+            'top_k': [args.top_k],
+            'batch_size': [args.batch_size],
+            'num_workers': [args.num_workers],
+            'num_epochs': [args.num_epochs],
+            'learning_rate': [args.lr],
+            'device': [device],
+            'train_dataset': [args.train_data],
+            'valid_dataset': [args.valid_data],
+            'test_dataset': [test_ds],
+            'final_train_loss': [train_avg_loss],
+            'final_train_acc': [train_acc],
+            'final_val_loss': [val_avg_loss],
+            'final_val_acc': [val_acc],
+            'test_loss': [test_avg_loss],
+            'test_acc': [test_acc],
+        })
+
+        metrics_file = 'metrics.csv'
+        if os.path.exists(metrics_file):
+            existing_df = pd.read_csv(metrics_file)
+            metrics_row = pd.concat([existing_df, metrics_row], ignore_index=True)
+
+        metrics_row.to_csv(metrics_file, index=False)
+        print(f"   ✓ Métricas desta avaliacao salvas em: {metrics_file}")
     
-    with torch.no_grad():
-        for images, labels in testloader:
-            images = images.to(device)
-            labels = labels.long().to(device)
-            
-            outputs = model(images)
-            loss = criterion(outputs, labels)
-            
-            test_loss += loss.item()
-            _, predicted = torch.max(outputs.data, 1)
-            test_total += labels.size(0)
-            test_correct += (predicted == labels).sum().item()
-    
-    test_acc = 100 * test_correct / test_total
-    test_avg_loss = test_loss / len(testloader)
-    
-    print("=" * 60)
-    print("RESULTADOS NO CONJUNTO DE TESTE")
-    print("=" * 60)
-    print(f"Test Loss: {test_avg_loss:.4f}")
-    print(f"Test Accuracy: {test_acc:.2f}%")
-    
-    # =====================
-    # Salvar Métricas
-    # =====================
-    print("\n[5/5] Salvando resultados...")
-    
-    # Criar DataFrame com métricas
-    metrics_df = pd.DataFrame({
-        'timestamp': [datetime.now().isoformat()],
-        'n_experts': [args.n_experts],
-        'top_k': [args.top_k],
-        'batch_size': [args.batch_size],
-        'num_workers': [args.num_workers],
-        'num_epochs': [args.num_epochs],
-        'learning_rate': [args.lr],
-        'device': [device],
-        'train_dataset': [args.train_data],
-        'valid_dataset': [args.valid_data],
-        'test_dataset': [args.test_data],
-        'final_train_loss': [train_avg_loss],
-        'final_train_acc': [train_acc],
-        'final_val_loss': [val_avg_loss],
-        'final_val_acc': [val_acc],
-        'test_loss': [test_avg_loss],
-        'test_acc': [test_acc],
-    })
-    
-    # Salvar métricas em CSV
-    metrics_file = 'metrics.csv'
-    if os.path.exists(metrics_file):
-        existing_df = pd.read_csv(metrics_file)
-        metrics_df = pd.concat([existing_df, metrics_df], ignore_index=True)
-    
-    metrics_df.to_csv(metrics_file, index=False)
-    print(f"   ✓ Métricas salvas em: {metrics_file}")
+    print("\n[5/5] Salvando histórico e pesos do modelo...\n")
     
     # Salvar histórico completo de treino
     history_df = pd.DataFrame(history)
@@ -328,7 +342,7 @@ def main():
     print(f"   ✓ Histórico de treino salvo em: {history_file}")
     
     # Salvar pesos do modelo
-    model_name = f'Moe-E{args.n_experts}-K{args.top_k}-W{args.num_workers}.pth'
+    model_name = f'Moe-{args.train_data}-B{args.batch_size}-E{args.n_experts}-K{args.top_k}-W{args.num_workers}.pth'
     model_path = os.path.join('Models', model_name)
     torch.save(model.state_dict(), model_path)
     print(f"   ✓ Pesos do modelo salvos em: {model_path}")
